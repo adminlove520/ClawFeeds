@@ -32,7 +32,7 @@ push:
     discussion_owner: "ythx-101"
     discussion_repo: "openclaw-qa"
     # Discussion 编号
-    discussion_number: 133
+    discussion_number: 132
     # 每天发一条还是每条图片都发
     # "daily" - 每天汇总发一条
     # "each" - 每张图片发一条
