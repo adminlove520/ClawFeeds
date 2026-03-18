@@ -29,9 +29,10 @@ def push_message(title, content, image_url=None):
             upload_owner = gh_config.get('owner')
             upload_repo = gh_config.get('repo')
             mode = gh_push.get('mode', 'each')
+            add_comment = gh_push.get('add_comment', 'ON') == 'ON'
             
             if token and discussion_owner and discussion_repo:
-                send_github_discussion(token, discussion_owner, discussion_repo, discussion_num, image_url, mode)
+                send_github_discussion(token, discussion_owner, discussion_repo, discussion_num, image_url, mode, add_comment)
     
     # 钉钉推送
     if 'dingding' in push_config and push_config['dingding'].get('switch', '') == "ON":
@@ -51,17 +52,17 @@ def push_message(title, content, image_url=None):
         send_discard_msg(push_config['discard'].get('webhook'), title, content, image_url)
 
 # GitHub Discussion 推送
-def send_github_discussion(token, owner, repo, discussion_number, image_url, mode="each"):
+def send_github_discussion(token, owner, repo, discussion_number, image_url, mode="each", add_comment=True):
     """发送到 GitHub Discussion"""
     try:
         date_str = datetime.now().strftime("%Y-%m-%d")
         
         if mode == "each":
             # 每张图片发一条
-            body = format_single_image_post(date_str, image_url)
+            body = format_single_image_post(date_str, image_url, add_comment=add_comment)
         else:
             # 汇总发一条（后续实现）
-            body = format_single_image_post(date_str, image_url)
+            body = format_single_image_post(date_str, image_url, add_comment=add_comment)
         
         client = GitHubClient(token=token, owner=owner, repo=repo)
         result = client.add_discussion_comment(discussion_number, body)
