@@ -1,36 +1,57 @@
-# ClawFeeds 配置示例
+# ClawFeeds 完整配置示例
 # 复制为 config.yaml 使用
-# 或在 Zeabur 中配置环境变量
 
 # ======== 必填 ========
-# GitHub Token（需要 repo 和 discussions 权限）
-GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+github:
+  token: "ghp_xxxxxxxxxxxxxxxxxxxx"
+  owner: "adminlove520"
+  repo: "ClawFeeds"
 
-# ======== GitHub Discussion 推送 ========
-GH_DISCUSSION_SWITCH=ON
-GH_DISCUSSION_OWNER=ythx-101
-GH_DISCUSSION_REPO=openclaw-qa
-GH_DISCUSSION_NUMBER=133
-GH_DISCUSSION_MODE=each
+# ======== 推送配置 ========
+push:
+  # GitHub Discussion
+  github_discussion:
+    switch: "ON"
+    discussion_owner: "ythx-101"
+    discussion_repo: "openclaw-qa"
+    discussion_number: 133
+    mode: "each"
+
+  # 钉钉
+  dingding:
+    webhook: "https://oapi.dingtalk.com/robot/send?access_token=xxx"
+    secret_key: "SECxxx"
+    switch: "OFF"
+
+  # Discord
+  discard:
+    webhook: "https://discord.com/api/webhooks/xxx"
+    switch: "OFF"
+
+  # 飞书
+  feishu:
+    webhook: "https://open.feishu.cn/open-apis/bot/hook/xxx"
+    switch: "OFF"
+
+  # Telegram
+  tg_bot:
+    token: "xxx"
+    group_id: "xxx"
+    switch: "OFF"
 
 # ======== AI 评论（可选） ========
-# 开启 AI 评论需要配置 MiniMax API
-# MINIMAX_API_KEY=your_api_key
-# AI_COMMENT_SWITCH=ON
-
-# ======== 钉钉推送（可选） ========
-# DINGDING_WEBHOOK=https://oapi.dingtalk.com/robot/send?access_token=xxx
-# DINGDING_SECRET=SECxxx
-# DINGDING_SWITCH=ON
-
-# ======== Discord 推送（可选） ========
-# DISCARD_WEBHOOK=https://discord.com/api/webhooks/xxx
-# DISCARD_SWITCH=ON
+# 使用 MiniMax API 生成评论
+ai_comment:
+  switch: "OFF"
+  api_key: "your_minimax_api_key"
 
 # ======== 代理（可选） ========
-# PROXY_ENABLE=ON
-# HTTP_PROXY=http://127.0.0.1:7890
-# HTTPS_PROXY=http://127.0.0.1:7890
+proxy:
+  enable: "OFF"
+  http_proxy: "http://127.0.0.1:7890"
+  https_proxy: "http://127.0.0.1:7890"
+  no_proxy: "localhost,127.0.0.1"
 
-# ======== RSS 源 ========
-# 在 rss.yaml 中配置
+# ======== 夜间休眠（可选） ========
+night_sleep:
+  switch: "ON"
