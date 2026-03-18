@@ -8,7 +8,7 @@ from utils.db import init_database
 from utils.notify import push_message
 from utils.rss import check_for_updates
 
-__version__ = "V1.0.15"
+__version__ = "V1.0.16"
 
 # 主函数
 def main():
