@@ -1,0 +1,7 @@
+# 敏感文件
+config.yaml
+*.db
+*.log
+__pycache__/
+*.pyc
+.env

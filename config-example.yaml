@@ -1,0 +1,58 @@
+
+# 代理设置
+proxy:
+  enable: "OFF"
+  http_proxy: "http://127.0.0.1:7890"
+  https_proxy: "http://127.0.0.1:7890"
+  no_proxy: "localhost,127.0.0.1"
+
+# 夜间休眠 (0-7点暂停推送)
+night_sleep:
+  switch: "ON"
+
+# GitHub 配置
+github:
+  # GitHub Token（需要 repo 权限）
+  token: ""
+  # 仓库 owner（存放图片的仓库）
+  owner: ""
+  # 仓库名
+  repo: ""
+  # Discussion 编号
+  discussion_number: 0
+  # Release tag 格式
+  release_tag_format: "daily-{date}"  # 如 daily-2026-03-18
+
+# 推送服务配置
+push:
+  # GitHub Discussion 推送
+  github_discussion:
+    switch: "ON"
+    # Discussion 编号
+    discussion_number: 22
+    # 每天发一条还是每条图片都发
+    # "daily" - 每天汇总发一条
+    # "each" - 每张图片发一条
+    mode: "each"
+
+  # 钉钉机器人
+  dingding:
+    webhook: ""
+    secret_key: ""
+    switch: "OFF"
+
+  # 飞书机器人
+  feishu:
+    webhook: "飞书的webhook地址"
+    switch: "OFF"
+
+  # Telegram Bot
+  tg_bot:
+    token: "Telegram Bot的token"
+    group_id: "Telegram Bot的group_id"
+    switch: "OFF"
+
+  # Discord
+  discard:
+    webhook: "discard的webhook地址"
+    switch: "ON"

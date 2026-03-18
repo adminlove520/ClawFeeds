@@ -1,0 +1,237 @@
+
+import requests
+import dingtalkchatbot.chatbot as cb
+import time
+import random
+import re
+from datetime import datetime, timedelta
+from .config import load_config, get_proxies
+from .github import GitHubClient
+from .discussion import format_single_image_post
+
+# 推送函数
+def push_message(title, content, image_url=None):
+    config = load_config()
+    push_config = config.get('push', {})
+    
+    # GitHub Discussion 推送
+    if 'github_discussion' in push_config and push_config['github_discussion'].get('switch', '') == "ON":
+        gh_push = push_config.get('github_discussion', {})
+        discussion_num = gh_push.get('discussion_number', 0)
+        if discussion_num and image_url:
+            # 获取 GitHub 配置
+            gh_config = config.get('github', {})
+            token = gh_config.get('token')
+            # Discussion 仓库（在 push config 里配置）
+            discussion_owner = gh_push.get('discussion_owner', gh_config.get('owner'))
+            discussion_repo = gh_push.get('discussion_repo', gh_config.get('repo'))
+            # 图片上传仓库
+            upload_owner = gh_config.get('owner')
+            upload_repo = gh_config.get('repo')
+            mode = gh_push.get('mode', 'each')
+            
+            if token and discussion_owner and discussion_repo:
+                send_github_discussion(token, discussion_owner, discussion_repo, discussion_num, image_url, mode)
+    
+    # 钉钉推送
+    if 'dingding' in push_config and push_config['dingding'].get('switch', '') == "ON":
+        send_dingding_msg(push_config['dingding'].get('webhook'), push_config['dingding'].get('secret_key'), title,
+                          content)
+
+    # 飞书推送
+    if 'feishu' in push_config and push_config['feishu'].get('switch', '') == "ON":
+        send_feishu_msg(push_config['feishu'].get('webhook'), title, content)
+
+    # Telegram Bot推送
+    if 'tg_bot' in push_config and push_config['tg_bot'].get('switch', '') == "ON":
+        send_tg_bot_msg(push_config['tg_bot'].get('token'), push_config['tg_bot'].get('group_id'), title, content)
+    
+    # Discard推送
+    if 'discard' in push_config and push_config['discard'].get('switch', '') == "ON":
+        send_discard_msg(push_config['discard'].get('webhook'), title, content, image_url)
+
+# GitHub Discussion 推送
+def send_github_discussion(token, owner, repo, discussion_number, image_url, mode="each"):
+    """发送到 GitHub Discussion"""
+    try:
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        
+        if mode == "each":
+            # 每张图片发一条
+            body = format_single_image_post(date_str, image_url)
+        else:
+            # 汇总发一条（后续实现）
+            body = format_single_image_post(date_str, image_url)
+        
+        client = GitHubClient(token=token, owner=owner, repo=repo)
+        result = client.add_discussion_comment(discussion_number, body)
+        print(f"✅ GitHub Discussion 推送成功! 评论ID: {result.get('id')}")
+        return True
+    except Exception as e:
+        print(f"❌ GitHub Discussion 推送失败: {e}")
+        return False
+
+# 飞书推送
+def send_feishu_msg(webhook, title, content):
+    feishu(title, content, webhook)
+
+# Telegram Bot推送
+def send_tg_bot_msg(token, group_id, title, content):
+    tgbot(title, content, token, group_id)
+
+# 钉钉推送
+def send_dingding_msg(webhook, secret_key, title, content):
+    dingding(title, content, webhook, secret_key)
+
+# 钉钉推送实现
+def dingding(text, msg, webhook, secretKey):
+    try:
+        if not webhook or webhook == "https://oapi.dingtalk.com/robot/send?access_token=你的token":
+            print(f"钉钉推送跳过：webhook地址未配置")
+            return
+            
+        if not secretKey or secretKey == "你的Key":
+            print(f"钉钉推送跳过：secret_key未配置")
+            return
+            
+        ding = cb.DingtalkChatbot(webhook, secret=secretKey)
+        ding.send_text(msg='{}\r\n{}'.format(text, msg), is_at_all=False)
+        print(f"钉钉推送成功: {text}")
+    except Exception as e:
+        print(f"钉钉推送失败: {str(e)}")
+
+# 飞书推送实现
+def feishu(text, msg, webhook):
+    try:
+        if not webhook or webhook == "飞书的webhook地址":
+            print(f"飞书推送跳过：webhook地址未配置")
+            return
+            
+        headers = {
+            "Content-Type": "application/json;charset=utf-8"
+        }
+        data = {
+            "msg_type": "text",
+            "content": {
+                "text": '{}\n{}'.format(text, msg)
+            }
+        }
+        
+        # 飞书推送不需要代理
+        response = requests.post(webhook, json=data, headers=headers, timeout=10)
+        response.raise_for_status()
+        print(f"飞书推送成功: {text}")
+    except Exception as e:
+        print(f"飞书推送失败: {str(e)}")
+
+# Telegram Bot推送实现
+def tgbot(text, msg, token, group_id):
+    import telegram
+    try:
+        if not token or token == "Telegram Bot的token":
+            print(f"Telegram推送跳过：token未配置")
+            return
+            
+        if not group_id or group_id == "Telegram Bot的group_id":
+            print(f"Telegram推送跳过：group_id未配置")
+            return
+            
+        # 获取代理配置
+        proxies = get_proxies()
+        
+        if proxies:
+            # 配置telegram bot使用代理
+            request_kwargs = {'proxies': proxies}
+            bot = telegram.Bot(token=token, request_kwargs=request_kwargs)
+        else:
+            bot = telegram.Bot(token=token)
+            
+        bot.send_message(chat_id=group_id, text=f'{text}\n{msg}')
+        print(f"Telegram推送成功: {text}")
+    except Exception as e:
+        print(f"Telegram推送失败: {str(e)}")
+
+# Discard推送
+def send_discard_msg(webhook, title, content, image_url=None):
+    # 检查是否是占位符
+    if not webhook or webhook == "discard的webhook地址":
+        print(f"Discard推送跳过：webhook地址未配置")
+        return
+    
+    # 检查webhook地址格式
+    if not webhook.startswith('http'):
+        print(f"Discard推送失败：webhook地址格式错误，必须以http或https开头")
+        return
+    
+    try:
+        headers = {
+            "Content-Type": "application/json;charset=utf-8"
+        }
+        
+        # 推送普通消息，使用 Embeds
+        # 尝试从content中解析真正的 标题 和 链接
+        embed_title = title
+        embed_desc = content
+        embed_url = ""
+        
+        try:
+            # 简单的解析逻辑
+            title_match = re.search(r'标题: (.*?)\n', content)
+            link_match = re.search(r'链接: (.*?)\n', content)
+            
+            if title_match:
+                embed_title = title_match.group(1)
+            if link_match:
+                embed_url = link_match.group(1)
+                
+            # 如果能解析出更干净的描述，可以去掉标题和链接行
+            embed_desc = f"来源: {title}"
+        except:
+            pass
+
+        # 随机颜色
+        color = random.randint(0, 0xFFFFFF)
+        
+        # 获取北京时间 (UTC+8)
+        beijing_time = (datetime.utcnow() + timedelta(hours=8)).strftime('%Y-%m-%d %H:%M:%S')
+        
+        embed = {
+            "title": embed_title,
+            "description": embed_desc,
+            "color": color,
+            "footer": {
+                "text": f"Powered by NSFW_monitor • {beijing_time}"
+            }
+        }
+        
+        if embed_url:
+            embed["url"] = embed_url
+        
+        # 如果有图片，添加到 embed
+        if image_url:
+            embed["image"] = {"url": image_url}
+        
+        data = {
+            "embeds": [embed]
+        }
+    
+        print(f"正在发送Discard推送：{title}")
+        
+        # 获取代理配置
+        proxies = get_proxies()
+        if proxies:
+            print(f"使用代理：{proxies}")
+        
+        # 使用较短的超时时间，避免长时间阻塞
+        response = requests.post(webhook, json=data, headers=headers, timeout=5, proxies=proxies)
+        
+        print(f"Discard推送响应状态码：{response.status_code}")
+        
+        # 检查响应状态
+        if response.status_code in [200, 204]:
+            print(f"Discard推送成功: {title}")
+        else:
+            print(f"Discard推送失败: HTTP状态码 - {response.status_code}")
+            print(f"响应内容: {response.text}")
+    except Exception as e:
+        print(f"Discard推送失败: {str(e)}")
