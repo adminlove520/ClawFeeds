@@ -39,8 +39,8 @@ jobs:
       - name: Update database
         if: always()
         run: |
-          git config --local user.email "bot@claw"
-          git config --local user.name "Clawimgs Monitor"
+          git config --global user.name 'RSS Monitor Bot'
+          git config --global user.email 'bot@noreply.github.com'
           git add articles.db 2>/dev/null || true
           git commit -m "Update database $(date +%Y-%m-%d\ %H:%M)" --allow-empty 2>/dev/null || true
           git push --force-with-lease
