@@ -10,6 +10,7 @@ import base64
 from urllib.parse import urljoin
 
 GITHUB_API = "https://api.github.com"
+GITHUB_GRAPHQL = "https://api.github.com/graphql"
 
 class GitHubClient:
     def __init__(self, token=None, owner=None, repo=None):
@@ -20,12 +21,30 @@ class GitHubClient:
             "Authorization": f"token {self.token}",
             "Accept": "application/vnd.github.v3+json"
         }
+        self.headers_graphql = {
+            "Authorization": f"Bearer {self.token}",
+            "Content-Type": "application/json"
+        }
     
     def _request(self, method, url, **kwargs):
         kwargs.setdefault("headers", self.headers)
         response = requests.request(method, url, **kwargs)
         response.raise_for_status()
         return response.json() if response.content else {}
+    
+    def _graphql(self, query, variables=None):
+        """GraphQL 请求"""
+        url = GITHUB_GRAPHQL
+        data = {"query": query}
+        if variables:
+            data["variables"] = variables
+        
+        response = requests.post(url, headers=self.headers_graphql, json=data)
+        response.raise_for_status()
+        result = response.json()
+        if "errors" in result:
+            raise Exception(f"GraphQL errors: {result['errors']}")
+        return result.get("data", {})
     
     def get_release_by_tag(self, tag):
         """获取指定 tag 的 Release"""
@@ -93,10 +112,44 @@ class GitHubClient:
         return asset.get("browser_download_url")
     
     def add_discussion_comment(self, discussion_id, body):
-        """在 Discussion 添加评论"""
-        url = f"{GITHUB_API}/repos/{self.owner}/{self.repo}/discussions/{discussion_id}/comments"
-        data = {"body": body}
-        return self._request("POST", url, json=data)
+        """在 Discussion 添加评论（使用 GraphQL）"""
+        # 先获取 discussion 的 node_id
+        query = """
+        query($owner: String!, $repo: String!, $discussionNumber: Int!) {
+          repository(owner: $owner, name: $repo) {
+            discussion(number: $discussionNumber) {
+              id
+            }
+          }
+        }
+        """
+        variables = {
+            "owner": self.owner,
+            "repo": self.repo,
+            "discussionNumber": int(discussion_id)
+        }
+        
+        result = self._graphql(query, variables)
+        discussion_node_id = result.get("repository", {}).get("discussion", {}).get("id")
+        
+        if not discussion_node_id:
+            raise Exception(f"Discussion #{discussion_number} not found")
+        
+        # 添加评论
+        mutation = """
+        mutation($discussionId: ID!, $body: String!) {
+          addDiscussionComment(input: {discussionId: $discussionId, body: $body}) {
+            comment { id }
+          }
+        }
+        """
+        variables = {
+            "discussionId": discussion_node_id,
+            "body": body
+        }
+        
+        result = self._graphql(mutation, variables)
+        return result.get("addDiscussionComment", {}).get("comment", {})
     
     def create_discussion(self, category_id, title, body):
         """创建 Discussion"""
