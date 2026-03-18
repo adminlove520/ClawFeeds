@@ -42,5 +42,6 @@ jobs:
           git config --global user.name 'ClawFeeds Bot'
           git config --global user.email 'bot@claw'
           git add articles.db 2>/dev/null || true
+          git pull --rebase origin main
           git commit -m "Update database $(date +%Y-%m-%d\ %H:%M)" --allow-empty 2>/dev/null || true
           git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} main --force-with-lease
