@@ -14,6 +14,5 @@ COPY . .
 # 安装依赖
 RUN pip install --no-cache-dir -r requirements.txt
 
-
-# 启动
+# 启动（环境变量会自动注入）
 CMD ["python", "Rss_monitor.py"]
